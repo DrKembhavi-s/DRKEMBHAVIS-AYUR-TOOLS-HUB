@@ -99,6 +99,16 @@
     </div>
   </div>
 
+  <!-- Reset Password Modal -->
+  <div id="resetModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal('resetModal')">&times;</span>
+      <h3>Set New Password</h3>
+      <input type="password" id="newPassword" placeholder="New Password" required>
+      <button onclick="updatePassword()">Update Password</button>
+    </div>
+  </div>
+
   <footer>
     <p>&copy; 2025 Ayurveda Academic Tools Portal</p>
     <p>
@@ -122,7 +132,7 @@
     function openModal(id) { document.getElementById(id).style.display = "flex"; }
     function closeModal(id) { document.getElementById(id).style.display = "none"; }
 
-    // ✅ Register (only signup)
+    // ✅ Register
     async function register() {
       const email = document.getElementById("regEmail").value;
       const password = document.getElementById("regPassword").value;
@@ -134,7 +144,7 @@
       closeModal('registerModal');
     }
 
-    // ✅ Login (creates profile if missing)
+    // ✅ Login (fixed v2)
     async function login() {
       const email = document.getElementById("loginEmail").value;
       const password = document.getElementById("loginPassword").value;
@@ -142,9 +152,9 @@
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) return alert("Login failed: " + error.message);
 
-      currentUser = data.user;
+      currentUser = data.user;  // ✅ correct in v2
 
-      // Check if profile exists
+      // Ensure profile exists
       let { data: profile } = await supabase
         .from("profiles")
         .select("*")
@@ -162,6 +172,7 @@
         .select("is_paid")
         .eq("id", currentUser.id)
         .single();
+
       paidUser = profile2?.is_paid || false;
 
       alert("Login successful!");
@@ -186,17 +197,20 @@
       closeModal('forgotModal');
     }
 
-    // ✅ Handle Reset Password after email link
+    // ✅ Handle Reset Password (modal instead of prompt)
     supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "PASSWORD_RECOVERY") {
-        const newPassword = prompt("Enter your new password:");
-        if (newPassword) {
-          const { data, error } = await supabase.auth.updateUser({ password: newPassword });
-          if (error) alert("Error resetting password: " + error.message);
-          else alert("Password has been reset successfully. Please login with your new password.");
-        }
+        openModal("resetModal");
       }
     });
+
+    async function updatePassword() {
+      const newPassword = document.getElementById("newPassword").value;
+      const { data, error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) return alert("Error resetting password: " + error.message);
+      alert("Password reset successful! Please login with your new password.");
+      closeModal("resetModal");
+    }
 
     // ✅ Razorpay Payment
     async function startPayment() {
