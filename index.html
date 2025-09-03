@@ -107,28 +107,19 @@
     function openModal(id) { document.getElementById(id).style.display = "flex"; }
     function closeModal(id) { document.getElementById(id).style.display = "none"; }
 
-    // ✅ Register
+    // ✅ Register (only signs up user)
     async function register() {
-      const name = document.getElementById("regName").value;
       const email = document.getElementById("regEmail").value;
       const password = document.getElementById("regPassword").value;
 
       const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) return alert("Signup failed: " + error.message);
 
-      const user = data.user;
-      if (user) {
-        const { error: insertError } = await supabase
-          .from("profiles")
-          .insert([{ id: user.id, name, is_paid: false }]);
-        if (insertError) return alert("Profile insert failed: " + insertError.message);
-
-        alert("Registered successfully! Please login.");
-        closeModal('registerModal');
-      }
+      alert("Registered successfully! Please login.");
+      closeModal('registerModal');
     }
 
-    // ✅ Login
+    // ✅ Login (creates profile if missing)
     async function login() {
       const email = document.getElementById("loginEmail").value;
       const password = document.getElementById("loginPassword").value;
@@ -138,9 +129,26 @@
 
       currentUser = data.user;
 
+      // 🔎 Check if profile exists
+      let { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", currentUser.id)
+        .single();
+
+      if (!profile) {
+        // Insert profile now (session active, so RLS passes)
+        const name = document.getElementById("regName").value || "New User";
+        await supabase.from("profiles").insert([{ id: currentUser.id, name, is_paid: false }]);
+      }
+
       // Fetch payment status
-      let { data: profile } = await supabase.from("profiles").select("is_paid").eq("id", currentUser.id).single();
-      paidUser = profile?.is_paid || false;
+      let { data: profile2 } = await supabase
+        .from("profiles")
+        .select("is_paid")
+        .eq("id", currentUser.id)
+        .single();
+      paidUser = profile2?.is_paid || false;
 
       alert("Login successful!");
       closeModal('loginModal');
@@ -164,7 +172,6 @@
         "name": "Ayurveda Academic Tools",
         "description": "One-time access fee",
         "handler": async function (response) {
-          // On payment success → update Supabase
           await supabase.from("profiles").update({ is_paid: true }).eq("id", currentUser.id);
           paidUser = true;
           alert("Payment successful! You now have full access.");
