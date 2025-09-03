@@ -19,6 +19,9 @@
     .modal-content { background:white; padding:20px; border-radius:10px; width:300px; text-align:center; }
     .modal-content input { width:90%; margin:10px 0; padding:8px; }
     .close { float:right; cursor:pointer; color:red; font-weight:bold; }
+    footer { background:#003366; color:white; text-align:center; padding:15px; margin-top:40px; }
+    footer a { color:#ffdd00; margin:0 10px; text-decoration:none; }
+    footer a:hover { text-decoration:underline; }
   </style>
 </head>
 <body>
@@ -81,10 +84,21 @@
     </div>
   </div>
 
+  <footer>
+    <p>&copy; 2025 Ayurveda Academic Tools Portal</p>
+    <p>
+      <a href="privacy.html">Privacy Policy</a> |
+      <a href="terms.html">Terms & Conditions</a> |
+      <a href="refund.html">Refund Policy</a> |
+      <a href="shipping.html">Shipping Policy</a> |
+      <a href="contact.html">Contact Us</a>
+    </p>
+  </footer>
+
   <script>
-    // 🔑 Replace with your Supabase project keys
-    const SUPABASE_URL = "https://YOUR-PROJECT.supabase.co";
-    const SUPABASE_KEY = "YOUR-ANON-PUBLIC-KEY";
+    // 🔑 Supabase Config
+    const SUPABASE_URL = "https://uuaqcyronuplthskoyx.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3YXFjeXJvbnVwbHRoaHNrb3l4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY0NDg0ODIsImV4cCI6MjA3MjAyNDQ4Mn0.Sc9stTaUmlXZ6wVZpYUw8MGp_GPdcgD2QsFbEEXcRU0";
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let currentUser = null;
@@ -93,31 +107,38 @@
     function openModal(id) { document.getElementById(id).style.display = "flex"; }
     function closeModal(id) { document.getElementById(id).style.display = "none"; }
 
+    // ✅ Register
     async function register() {
       const name = document.getElementById("regName").value;
       const email = document.getElementById("regEmail").value;
       const password = document.getElementById("regPassword").value;
 
       const { data, error } = await supabase.auth.signUp({ email, password });
-      if (error) return alert(error.message);
+      if (error) return alert("Signup failed: " + error.message);
 
-      const userId = data.user.id;
-      await supabase.from("profiles").insert([{ id: userId, name, is_paid: false }]);
+      const user = data.user;
+      if (user) {
+        const { error: insertError } = await supabase
+          .from("profiles")
+          .insert([{ id: user.id, name, is_paid: false }]);
+        if (insertError) return alert("Profile insert failed: " + insertError.message);
 
-      alert("Registered successfully! Please login.");
-      closeModal('registerModal');
+        alert("Registered successfully! Please login.");
+        closeModal('registerModal');
+      }
     }
 
+    // ✅ Login
     async function login() {
       const email = document.getElementById("loginEmail").value;
       const password = document.getElementById("loginPassword").value;
 
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) return alert(error.message);
+      if (error) return alert("Login failed: " + error.message);
 
       currentUser = data.user;
 
-      // fetch payment status
+      // Fetch payment status
       let { data: profile } = await supabase.from("profiles").select("is_paid").eq("id", currentUser.id).single();
       paidUser = profile?.is_paid || false;
 
@@ -132,27 +153,24 @@
       alert("Logged out");
     }
 
+    // ✅ Razorpay Payment
     async function startPayment() {
       if (!currentUser) return alert("Please login first");
 
       var options = {
-        "key": "rzp_test_RD2amKDIv6NGgh", // Sandbox Key
-        "amount": 5000, // Amount in paise (₹50.00 here)
+        "key": "rzp_test_RD2amKDIv6NGgh", // ✅ Your Test Key ID
+        "amount": 5000, // amount in paise (₹50)
         "currency": "INR",
         "name": "Ayurveda Academic Tools",
         "description": "One-time access fee",
         "handler": async function (response) {
-          // ✅ On successful payment, update Supabase profile
+          // On payment success → update Supabase
           await supabase.from("profiles").update({ is_paid: true }).eq("id", currentUser.id);
           paidUser = true;
           alert("Payment successful! You now have full access.");
         },
-        "prefill": {
-          "email": currentUser?.email
-        },
-        "theme": {
-          "color": "#3399cc"
-        }
+        "prefill": { "email": currentUser?.email },
+        "theme": { "color": "#3399cc" }
       };
       var rzp1 = new Razorpay(options);
       rzp1.open();
