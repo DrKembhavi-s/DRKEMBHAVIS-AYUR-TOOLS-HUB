@@ -140,11 +140,11 @@
       const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) return alert("Signup failed: " + error.message);
 
-      alert("Registered successfully! Please confirm your email before login.");
+      alert("Registered successfully!");
       closeModal('registerModal');
     }
 
-    // ✅ Login (fixed v2)
+    // ✅ Fixed Login (Supabase v2)
     async function login() {
       const email = document.getElementById("loginEmail").value;
       const password = document.getElementById("loginPassword").value;
@@ -152,7 +152,9 @@
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) return alert("Login failed: " + error.message);
 
-      currentUser = data.user;  // ✅ correct in v2
+      currentUser = data.user ?? data.session?.user; // ✅ safer
+
+      if (!currentUser) return alert("Login failed: No user returned");
 
       // Ensure profile exists
       let { data: profile } = await supabase
@@ -162,8 +164,7 @@
         .single();
 
       if (!profile) {
-        const name = document.getElementById("regName").value || "New User";
-        await supabase.from("profiles").insert([{ id: currentUser.id, name, is_paid: false }]);
+        await supabase.from("profiles").insert([{ id: currentUser.id, name: "New User", is_paid: false }]);
       }
 
       // Fetch payment status
@@ -197,7 +198,7 @@
       closeModal('forgotModal');
     }
 
-    // ✅ Handle Reset Password (modal instead of prompt)
+    // ✅ Reset Password Modal
     supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "PASSWORD_RECOVERY") {
         openModal("resetModal");
@@ -217,8 +218,8 @@
       if (!currentUser) return alert("Please login first");
 
       var options = {
-        "key": "rzp_test_RD2amKDIv6NGgh", // ✅ Your Test Key ID
-        "amount": 5000, // amount in paise (₹50)
+        "key": "rzp_test_RD2amKDIv6NGgh",
+        "amount": 5000, // ₹50
         "currency": "INR",
         "name": "Ayurveda Academic Tools",
         "description": "One-time access fee",
